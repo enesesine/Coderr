@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'auth_app',
     'profiles_app',
     'offers_app',
+    'orders_app'
 ]
 
 MIDDLEWARE = [
@@ -108,7 +109,7 @@ AUTH_USER_MODEL = 'auth_app.CustomUser'
 # DRF global settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

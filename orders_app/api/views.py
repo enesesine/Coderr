@@ -1,0 +1,108 @@
+# orders_app/api/views.py
+
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView, DestroyAPIView
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.response import Response
+from rest_framework import status
+from orders_app.models import Order
+from offers_app.models import OfferDetail
+from .serializers import OrderSerializer
+from orders_app import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class OrderListCreateView(ListCreateAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Order.objects.filter(
+            models.Q(customer_user=user) | models.Q(business_user=user)
+        )
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+
+        if user.user_type != "customer":
+            raise PermissionDenied("Nur Benutzer vom Typ 'customer' dürfen Bestellungen erstellen.")
+
+        offer_detail_id = request.data.get("offer_detail_id")
+        if not offer_detail_id:
+            return self._bad_request("Feld 'offer_detail_id' ist erforderlich.")
+
+        try:
+            offer_detail = OfferDetail.objects.select_related('offer__user').get(pk=offer_detail_id)
+        except OfferDetail.DoesNotExist:
+            raise NotFound("Angebotsdetail nicht gefunden.")
+
+        order = Order.objects.create(
+            customer_user=user,
+            business_user=offer_detail.offer.user,
+            title=offer_detail.title,
+            revisions=offer_detail.revisions,
+            delivery_time_in_days=offer_detail.delivery_time_in_days,
+            price=offer_detail.price,
+            features=offer_detail.features,
+            offer_type=offer_detail.offer_type,
+            status='in_progress'
+        )
+
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=201)
+
+    def _bad_request(self, message):
+        return Response({"error": message}, status=400)
+
+
+class OrderStatusUpdateView(RetrieveUpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "id"
+
+    def get_object(self):
+        order = super().get_object()
+        if self.request.user != order.business_user:
+            raise PermissionDenied("Nur der Geschäftspartner darf den Status aktualisieren.")
+        return order
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if "status" not in request.data:
+            return Response(
+                {"detail": "Nur das Feld 'status' darf aktualisiert werden."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        partial_data = {"status": request.data["status"]}
+        serializer = self.get_serializer(instance, data=partial_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+
+class OrderDeleteView(DestroyAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [IsAdminUser]
+    lookup_field = 'id'
+
+    def get_object(self):
+        try:
+            return Order.objects.get(pk=self.kwargs["id"])
+        except Order.DoesNotExist:
+            raise NotFound("Die Bestellung wurde nicht gefunden.")
+
+
+class CompletedOrderCountView(APIView):
+    def get(self, request, business_user_id):
+        try:
+            user = User.objects.get(pk=business_user_id)
+        except User.DoesNotExist:
+            raise NotFound("Geschäftsnutzer wurde nicht gefunden.")
+
+        count = Order.objects.filter(business_user=user, status='completed').count()
+        return Response({"completed_order_count": count}, status=200)

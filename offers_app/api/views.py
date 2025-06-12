@@ -1,11 +1,15 @@
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+    RetrieveAPIView
+)
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
-from offers_app.models import Offer
-from .serializers import OfferSerializer, OfferCreateSerializer
+from offers_app.models import Offer, OfferDetail
+from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer
 
 
 class OfferPagination(PageNumberPagination):
@@ -30,10 +34,10 @@ class OfferListCreateView(ListCreateAPIView):
         serializer.save()
 
 
-class OfferDetailView(RetrieveUpdateDestroyAPIView):  # <--- DELETE jetzt unterstützt
+class OfferDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
     permission_classes = [IsAuthenticated]
-    lookup_field = 'id'  
+    lookup_field = 'id'
     lookup_url_kwarg = 'id'
 
     def get_object(self):
@@ -49,3 +53,10 @@ class OfferDetailView(RetrieveUpdateDestroyAPIView):  # <--- DELETE jetzt unters
 
     def perform_update(self, serializer):
         serializer.save()
+
+
+class OfferDetailRetrieveView(RetrieveAPIView):
+    queryset = OfferDetail.objects.all()
+    serializer_class = OfferDetailSerializer
+    lookup_field = 'id'
+    lookup_url_kwarg = 'id'
