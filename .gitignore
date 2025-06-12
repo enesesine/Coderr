@@ -1,0 +1,20 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Django DB
+db.sqlite3
+
+# Environment
+.env
+
+# VS Code
+.vscode/
+
+# macOS & Windows
+.DS_Store
+Thumbs.db
+
+# Migrations (optional)
+*/migrations/__pycache__/
