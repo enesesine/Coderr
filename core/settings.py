@@ -9,14 +9,17 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-iyg!2u1xk$pjnh#ybptg+jhb5r6zfx(=9&aq5yjuc*5zr96iax'
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
 ALLOWED_HOSTS = []
 
 # Application definition
 INSTALLED_APPS = [
-    # Django apps
+    # Django default apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -30,6 +33,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'auth_app',
+    'profiles_app',
 ]
 
 MIDDLEWARE = [
@@ -91,16 +95,16 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# Static files
 STATIC_URL = 'static/'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model
+# Custom User model
 AUTH_USER_MODEL = 'auth_app.CustomUser'
 
-# DRF configuration
+# DRF global settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
