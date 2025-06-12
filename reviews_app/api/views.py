@@ -1,4 +1,4 @@
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
@@ -38,7 +38,7 @@ class ReviewCreateView(CreateAPIView):
         serializer.save(reviewer=user)
 
 
-class ReviewUpdateView(RetrieveUpdateAPIView):
+class ReviewUpdateView(UpdateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
@@ -46,19 +46,19 @@ class ReviewUpdateView(RetrieveUpdateAPIView):
 
     def get_object(self):
         review = super().get_object()
-        if self.request.user != review.reviewer:
-            raise PermissionDenied("Du darfst nur deine eigene Bewertung bearbeiten.")
+        if review.reviewer != self.request.user:
+            raise PermissionDenied("Nur der Ersteller darf diese Bewertung aktualisieren.")
         return review
 
-    def patch(self, request, *args, **kwargs):
-        instance = self.get_object()
-        partial_data = {
-            key: request.data[key]
-            for key in ['rating', 'description']
-            if key in request.data
-        }
 
-        serializer = self.get_serializer(instance, data=partial_data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+class ReviewDeleteView(DestroyAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "id"
+
+    def get_object(self):
+        review = super().get_object()
+        if review.reviewer != self.request.user:
+            raise PermissionDenied("Nur der Ersteller darf diese Bewertung löschen.")
+        return review
