@@ -30,10 +30,11 @@ class OfferListCreateView(ListCreateAPIView):
         serializer.save()
 
 
-class OfferDetailView(RetrieveUpdateDestroyAPIView):
+class OfferDetailView(RetrieveUpdateDestroyAPIView):  # <--- DELETE jetzt unterstützt
     queryset = Offer.objects.all()
     permission_classes = [IsAuthenticated]
-    lookup_field = "id"
+    lookup_field = 'id'  
+    lookup_url_kwarg = 'id'
 
     def get_object(self):
         offer = super().get_object()
