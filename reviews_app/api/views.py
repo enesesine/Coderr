@@ -10,6 +10,13 @@ from .serializers import ReviewSerializer
 
 
 class ReviewListView(ListAPIView):
+    """
+    View to list all reviews with optional filtering and ordering.
+
+    - Requires authentication.
+    - Supports filtering by 'business_user' and 'reviewer'.
+    - Supports ordering by 'updated_at' and 'rating'.
+    """
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
@@ -19,26 +26,42 @@ class ReviewListView(ListAPIView):
 
 
 class ReviewCreateView(CreateAPIView):
+    """
+    View to create a new review.
+
+    - Only users with the 'customer' role can create reviews.
+    - A customer can only leave one review per business user.
+    - The reviewer is automatically set to the current authenticated user.
+    """
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         user = self.request.user
 
+        # Only 'customer' users can create reviews
         if user.user_type != 'customer':
-            raise PermissionDenied("Nur Benutzer mit dem Typ 'customer' dürfen Bewertungen erstellen.")
+            raise PermissionDenied("Only users with the type 'customer' can create reviews.")
 
         business_user = self.request.data.get("business_user")
         if not business_user:
-            raise ValidationError({"business_user": "Dieses Feld wird benötigt."})
+            raise ValidationError({"business_user": "This field is required."})
 
+        # Prevent duplicate reviews from the same reviewer to the same business user
         if Review.objects.filter(reviewer=user, business_user_id=business_user).exists():
-            raise ValidationError({"error": "Du hast bereits eine Bewertung für diesen Geschäftsbenutzer abgegeben."})
+            raise ValidationError({"error": "You have already submitted a review for this business user."})
 
+        # Save the review with the authenticated user as the reviewer
         serializer.save(reviewer=user)
 
 
 class ReviewUpdateView(UpdateAPIView):
+    """
+    View to update an existing review.
+
+    - Only the user who created the review (reviewer) can update it.
+    - Supports partial updates using PATCH.
+    """
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
@@ -46,12 +69,19 @@ class ReviewUpdateView(UpdateAPIView):
 
     def get_object(self):
         review = super().get_object()
+
+        # Only the reviewer is allowed to update the review
         if review.reviewer != self.request.user:
-            raise PermissionDenied("Nur der Ersteller darf diese Bewertung aktualisieren.")
+            raise PermissionDenied("Only the author of this review can update it.")
         return review
 
 
 class ReviewDeleteView(DestroyAPIView):
+    """
+    View to delete an existing review.
+
+    - Only the user who created the review (reviewer) can delete it.
+    """
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
@@ -59,6 +89,8 @@ class ReviewDeleteView(DestroyAPIView):
 
     def get_object(self):
         review = super().get_object()
+
+        # Only the reviewer is allowed to delete the review
         if review.reviewer != self.request.user:
-            raise PermissionDenied("Nur der Ersteller darf diese Bewertung löschen.")
+            raise PermissionDenied("Only the author of this review can delete it.")
         return review
