@@ -33,7 +33,8 @@ class OfferDetailSerializer(serializers.ModelSerializer):
             'delivery_time_in_days',
             'price',
             'features',
-            'offer_type'
+            'offer_type',
+            'id'
         ]
 
 
@@ -90,7 +91,7 @@ class OfferCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Offer
-        fields = ['title', 'image', 'description', 'details']
+        fields = ['id','title', 'image', 'description', 'details']
 
     def validate_details(self, value):
         # Enforces that a new offer must have at least 3 pricing tiers (basic, standard, premium)

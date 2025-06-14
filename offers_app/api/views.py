@@ -6,38 +6,48 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from rest_framework.filters import OrderingFilter, SearchFilter
 from offers_app.models import Offer, OfferDetail
 from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer
 
-# Custom pagination class to allow dynamic page size via query parameter
+
+# Custom pagination class
 class OfferPagination(PageNumberPagination):
+    page_size = 1
     page_size_query_param = 'page_size'
 
 
-# View for listing all offers or creating a new one
+# Custom filter to support filtering by min_price and max_delivery_time on related OfferDetail
+class OfferFilter(FilterSet):
+    min_price = NumberFilter(field_name='details__price', lookup_expr='gte')
+    max_delivery_time = NumberFilter(field_name='details__delivery_time_in_days', lookup_expr='lte')
+
+    class Meta:
+        model = Offer
+        fields = ['user', 'min_price', 'max_delivery_time']
+
+
+# View for listing or creating offers
 class OfferListCreateView(ListCreateAPIView):
-    queryset = Offer.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]  # Authenticated users can POST; everyone can GET
+    queryset = Offer.objects.all().distinct()
+    permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = OfferPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
-    filterset_fields = ['user']  # Filter by user ID (creator of the offer)
-    ordering_fields = ['updated_at', 'details__price']  # Allow ordering by last update and price
-    search_fields = ['title', 'description']  # Enable search by title or description
+    filterset_class = OfferFilter
+    ordering_fields = ['updated_at', 'details__price']
+    search_fields = ['title', 'description']
 
     def get_serializer_class(self):
-        # Use a different serializer for creation
         if self.request.method == 'POST':
             return OfferCreateSerializer
         return OfferSerializer
 
     def perform_create(self, serializer):
-        # Save the offer with the user already associated from the serializer
-        serializer.save()
+        serializer.save(user=self.request.user)
 
 
-# View for retrieving, updating or deleting a specific offer (by its creator)
+# View for retrieving, updating or deleting a specific offer
 class OfferDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
     permission_classes = [IsAuthenticated]
@@ -45,24 +55,21 @@ class OfferDetailView(RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = 'id'
 
     def get_object(self):
-        # Ensure only the owner of the offer can modify it
         offer = super().get_object()
         if offer.user != self.request.user:
             raise PermissionDenied("You are not the creator of this offer.")
         return offer
 
     def get_serializer_class(self):
-        # Use different serializer for partial update
         if self.request.method == 'PATCH':
             return OfferCreateSerializer
         return OfferSerializer
 
     def perform_update(self, serializer):
-        # Perform save operation during update
         serializer.save()
 
 
-# View for retrieving an individual OfferDetail by ID
+# View to retrieve a specific OfferDetail (tier)
 class OfferDetailRetrieveView(RetrieveAPIView):
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer

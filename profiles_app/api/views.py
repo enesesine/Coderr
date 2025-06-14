@@ -13,7 +13,7 @@ class UserProfileView(RetrieveUpdateAPIView):
     """
     queryset = CustomUser.objects.all()
     serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated, IsOwnerProfile]
+    permission_classes = [IsAuthenticated]
     lookup_field = "pk"  # Profile is accessed by user ID (primary key)
 
 

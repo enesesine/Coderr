@@ -1,4 +1,4 @@
-from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView, ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
@@ -9,7 +9,7 @@ from reviews_app.models import Review
 from .serializers import ReviewSerializer
 
 
-class ReviewListView(ListAPIView):
+class ReviewListView(ListCreateAPIView):
     """
     View to list all reviews with optional filtering and ordering.
 

@@ -29,7 +29,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",     # registration date (read-only)
             "uploaded_at"     # file upload date
         ]
-        read_only_fields = ["username", "email", "type", "created_at"]
+        read_only_fields = ["username", "created_at"]
 
     def to_representation(self, instance):
         """
