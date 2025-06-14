@@ -34,7 +34,7 @@ Built with **Django** and **Django REST Framework**, it supports role-based regi
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/coderr-backend.git
+git clone https://github.com/enesesine/coderr-backend.git
 cd coderr-backend
 ```
 
@@ -42,7 +42,7 @@ cd coderr-backend
 
 ```bash
 python -m venv venv
-source venv/bin/activate      # On Windows: venv\Scripts\activate
+venv\Scripts\activate      
 ```
 
 ### 3. Install dependencies
