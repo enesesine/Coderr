@@ -4,6 +4,5 @@ from django.urls import path, include
 # It includes all routes defined in 'auth_app.api.urls' under the '/api/' prefix.
 
 urlpatterns = [
-    # Include authentication-related API routes under the 'api/' path
-    path('api/', include('auth_app.api.urls')),
+    path('', include('auth_app.api.urls')),
 ]

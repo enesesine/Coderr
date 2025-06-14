@@ -8,16 +8,17 @@ from .serializers import RegistrationSerializer, LoginSerializer
 
 class RegistrationView(APIView):
     """
-    API endpoint for user registration.
-    Accepts user details, creates a new user, and returns an auth token.
+    Endpoint for registering a new user.
+    - Accepts: username, email, password, repeated_password, and user type.
+    - Returns: an authentication token along with user information.
     """
-    permission_classes = []  # Public endpoint – no authentication required
+    permission_classes = []  # Open access
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            # Generate a token for the newly created user
+            # Create or retrieve an auth token for the user
             token, _ = Token.objects.get_or_create(user=user)
             return Response({
                 'token': token.key,
@@ -25,22 +26,23 @@ class RegistrationView(APIView):
                 'email': user.email,
                 'user_id': user.id,
             }, status=status.HTTP_201_CREATED)
-        # Return validation errors if the request is invalid
+        # Return any validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
     """
-    API endpoint for user login.
-    Accepts username and password, authenticates the user, and returns an auth token.
+    Endpoint for user login.
+    - Accepts: username and password
+    - Returns: an authentication token and user details if valid
     """
-    permission_classes = []  # Public endpoint – no authentication required
+    permission_classes = []  # Open access
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            # Reuse or generate a token for the authenticated user
+            # Create or retrieve an auth token for the user
             token, _ = Token.objects.get_or_create(user=user)
             return Response({
                 'token': token.key,
@@ -48,5 +50,5 @@ class LoginView(APIView):
                 'email': user.email,
                 'user_id': user.id,
             }, status=status.HTTP_200_OK)
-        # Return error if authentication fails
+        # Return error if credentials are invalid
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

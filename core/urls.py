@@ -20,31 +20,29 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView  
 
+from django.contrib import admin
+from django.urls import path, include
+
 urlpatterns = [
-    # Admin panel
+    # Django Admin Panel
     path('admin/', admin.site.urls),
 
-    # JWT authentication endpoints
-    # Used to obtain a new access and refresh token pair
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # Used to refresh the access token using a valid refresh token
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-    # Authentication app routes (e.g., login, registration)
+    # 🔐 Authentication Endpoints (Login & Registration via DRF Token)
     path('', include('auth_app.urls')),
 
-    # Profile management routes (e.g., user profile view/update)
+    # 👤 Profile Management (view/update)
     path('api/', include('profiles_app.api.urls')),
 
-    # Offer-related endpoints (e.g., offer creation, listing)
+    # 📦 Offer Endpoints (create, list, update)
     path('api/', include('offers_app.api.urls')),
 
-    # Order-related endpoints (e.g., create, update, delete orders)
+    # 📄 Order Endpoints (place, update, delete)
     path('api/', include('orders_app.api.urls')),
 
-    # Review system routes (e.g., create, list, edit reviews)
+    # ⭐ Review System (create, list, update)
     path('api/', include('reviews_app.api.urls')),
 
-    # General platform statistics (e.g., review count, average rating)
+    # 📊 Platform Stats Endpoint
     path('api/', include('base_info_app.api.urls')),
 ]
+
