@@ -4,8 +4,11 @@ from auth_app.models import CustomUser
 from django.db import models
 
 
-#  Serializer for linking OfferDetail entries (used in list views of offers)
 class OfferDetailLinkSerializer(serializers.ModelSerializer):
+    """
+    Lightweight serializer for linking an OfferDetail.
+    Used when listing Offer objects with references to their pricing tiers.
+    """
     url = serializers.SerializerMethodField()
 
     class Meta:
@@ -17,8 +20,11 @@ class OfferDetailLinkSerializer(serializers.ModelSerializer):
         return f"/offerdetails/{obj.id}/"
 
 
-#  Serializer for full representation of a single OfferDetail (used in offer creation and editing)
 class OfferDetailSerializer(serializers.ModelSerializer):
+    """
+    Full serializer for OfferDetail.
+    Used when creating or updating offer tiers like 'basic', 'standard', or 'premium'.
+    """
     class Meta:
         model = OfferDetail
         fields = [
@@ -31,8 +37,11 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-#  Read-only serializer for listing Offer entries with summary and nested info
 class OfferSerializer(serializers.ModelSerializer):
+    """
+    Read-only serializer for displaying Offers.
+    Includes linked details, minimum price and time, and user profile summary.
+    """
     details = OfferDetailLinkSerializer(many=True, read_only=True)
     min_price = serializers.SerializerMethodField()
     min_delivery_time = serializers.SerializerMethodField()
@@ -72,8 +81,11 @@ class OfferSerializer(serializers.ModelSerializer):
         }
 
 
-#  Serializer used for creating or updating an Offer with nested OfferDetails
 class OfferCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating or updating an Offer including its nested OfferDetails.
+    Validates minimum number of detail packages and supports nested creation/update logic.
+    """
     details = OfferDetailSerializer(many=True)
 
     class Meta:
