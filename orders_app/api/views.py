@@ -1,7 +1,7 @@
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView, DestroyAPIView, ListAPIView
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework import status
 from orders_app.models import Order
@@ -17,8 +17,8 @@ class OrderListCreateView(ListCreateAPIView):
     """
     Handles listing and creation of orders.
 
-    GET: Returns a list of orders that belong to the current user as either customer or business user.
-    POST: Allows a customer to create an order based on a specific OfferDetail.
+    GET: Returns a list of orders where the user is either the customer or the business user.
+    POST: Allows a customer to create an order from an existing OfferDetail.
     """
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
@@ -32,18 +32,19 @@ class OrderListCreateView(ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         user = request.user
 
-        if user.type != "customer":
+        if user.user_type != "customer":
             raise PermissionDenied("Only users of type 'customer' are allowed to create orders.")
 
         offer_detail_id = request.data.get("offer_detail_id")
         if not offer_detail_id:
-            return self._bad_request("Field 'offer_detail_id' is required.")
+            raise ValidationError({"offer_detail_id": "This field is required."})
 
         try:
             offer_detail = OfferDetail.objects.select_related('offer__user').get(pk=offer_detail_id)
         except OfferDetail.DoesNotExist:
             raise NotFound("Offer detail not found.")
 
+        # Create order using offer detail info
         order = Order.objects.create(
             customer_user=user,
             business_user=offer_detail.offer.user,
@@ -57,16 +58,13 @@ class OrderListCreateView(ListCreateAPIView):
         )
 
         serializer = self.get_serializer(order)
-        return Response(serializer.data, status=201)
-
-    def _bad_request(self, message):
-        return Response({"error": message}, status=400)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class OrderStatusUpdateView(RetrieveUpdateAPIView):
     """
     Allows business users to update the status of an order.
-    PATCH: Only the business user assigned to the order may update its status.
+    PATCH: Only the business user can modify the order status.
     """
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -96,7 +94,7 @@ class OrderStatusUpdateView(RetrieveUpdateAPIView):
 class OrderDeleteView(DestroyAPIView):
     """
     Deletes an order.
-    Only admin users (staff) are allowed to perform this action.
+    Only admin users are authorized to perform this action.
     """
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -113,6 +111,7 @@ class OrderDeleteView(DestroyAPIView):
 class CompletedOrderCountView(APIView):
     """
     Returns the number of completed orders for a given business user.
+    This endpoint does not require authentication.
     """
     def get(self, request, business_user_id):
         try:
@@ -121,13 +120,13 @@ class CompletedOrderCountView(APIView):
             raise NotFound("Business user not found.")
 
         count = Order.objects.filter(business_user=user, status='completed').count()
-        return Response({"completed_order_count": count}, status=200)
+        return Response({"completed_order_count": count}, status=status.HTTP_200_OK)
 
 
 class OrdersForBusinessView(ListAPIView):
     """
-    Returns all orders where the current user is the business_user.
-    GET: Authenticated business users see all orders assigned to them.
+    Returns all orders assigned to the authenticated business user.
+    GET: Only the business_user will see relevant orders.
     """
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
