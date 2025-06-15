@@ -2,7 +2,6 @@ from rest_framework import serializers
 from auth_app.models import CustomUser
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-from rest_framework.exceptions import AuthenticationFailed
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -47,14 +46,17 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, data):
         """
         Validates the user's credentials.
-        If invalid, raises an authentication error.
+        If invalid, raises a 400 error instead of 401.
         """
-        user = authenticate(
-            username=data.get("username"),
-            password=data.get("password")
-        )
-        if not user:
-            raise AuthenticationFailed("Invalid username or password.")
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            raise serializers.ValidationError("Both 'username' and 'password' are required.")
+
+        user = authenticate(username=username, password=password)
+        if user is None:
+            raise serializers.ValidationError("Invalid username or password.")
 
         data["user"] = user  # Include the authenticated user in the validated data
         return data

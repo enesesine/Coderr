@@ -3,7 +3,8 @@ from .views import (
     OrderListCreateView,
     OrderStatusUpdateView,
     OrderDeleteView,
-    CompletedOrderCountView
+    CompletedOrderCountView,
+    OrdersForBusinessView  
 )
 
 urlpatterns = [
@@ -21,4 +22,7 @@ urlpatterns = [
 
     # GET: Retrieve the count of completed orders for a specific business user
     path('completed-order-count/<int:business_user_id>/', CompletedOrderCountView.as_view(), name='completed-order-count'),
+
+    # GET: List all orders for the currently authenticated business user
+    path('orders/business/', OrdersForBusinessView.as_view(), name='orders-business'),
 ]

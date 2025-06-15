@@ -1,4 +1,4 @@
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView, DestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView, DestroyAPIView, ListAPIView
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
 class OrderListCreateView(ListCreateAPIView):
     """
     Handles listing and creation of orders.
@@ -24,7 +25,6 @@ class OrderListCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        # Return orders where the user is either customer or business
         return Order.objects.filter(
             models.Q(customer_user=user) | models.Q(business_user=user)
         )
@@ -32,7 +32,6 @@ class OrderListCreateView(ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         user = request.user
 
-        # Only users with type 'customer' can create orders
         if user.type != "customer":
             raise PermissionDenied("Only users of type 'customer' are allowed to create orders.")
 
@@ -45,7 +44,6 @@ class OrderListCreateView(ListCreateAPIView):
         except OfferDetail.DoesNotExist:
             raise NotFound("Offer detail not found.")
 
-        # Create new order from offer detail
         order = Order.objects.create(
             customer_user=user,
             business_user=offer_detail.offer.user,
@@ -62,14 +60,12 @@ class OrderListCreateView(ListCreateAPIView):
         return Response(serializer.data, status=201)
 
     def _bad_request(self, message):
-        # Helper method to return a 400 error with a custom message
         return Response({"error": message}, status=400)
 
 
 class OrderStatusUpdateView(RetrieveUpdateAPIView):
     """
     Allows business users to update the status of an order.
-    
     PATCH: Only the business user assigned to the order may update its status.
     """
     queryset = Order.objects.all()
@@ -79,14 +75,12 @@ class OrderStatusUpdateView(RetrieveUpdateAPIView):
 
     def get_object(self):
         order = super().get_object()
-        # Only the business user associated with the order may update it
         if self.request.user != order.business_user:
             raise PermissionDenied("Only the business partner can update the order status.")
         return order
 
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Ensure only 'status' is being updated
         if "status" not in request.data:
             return Response(
                 {"detail": "Only the 'status' field can be updated."},
@@ -102,7 +96,6 @@ class OrderStatusUpdateView(RetrieveUpdateAPIView):
 class OrderDeleteView(DestroyAPIView):
     """
     Deletes an order.
-    
     Only admin users (staff) are allowed to perform this action.
     """
     queryset = Order.objects.all()
@@ -120,8 +113,6 @@ class OrderDeleteView(DestroyAPIView):
 class CompletedOrderCountView(APIView):
     """
     Returns the number of completed orders for a given business user.
-
-    Accessible without authentication.
     """
     def get(self, request, business_user_id):
         try:
@@ -131,3 +122,15 @@ class CompletedOrderCountView(APIView):
 
         count = Order.objects.filter(business_user=user, status='completed').count()
         return Response({"completed_order_count": count}, status=200)
+
+
+class OrdersForBusinessView(ListAPIView):
+    """
+    Returns all orders where the current user is the business_user.
+    GET: Authenticated business users see all orders assigned to them.
+    """
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(business_user=self.request.user)
