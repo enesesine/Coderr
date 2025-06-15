@@ -91,7 +91,7 @@ class OfferCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Offer
-        fields = ['id','title', 'image', 'description', 'details']
+        fields = ['id', 'title', 'image', 'description', 'details']
 
     def validate_details(self, value):
         # Enforces that a new offer must have at least 3 pricing tiers (basic, standard, premium)
@@ -103,8 +103,7 @@ class OfferCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Creates an Offer instance along with all its nested OfferDetail entries
         details_data = validated_data.pop('details')
-        user = self.context['request'].user
-        offer = Offer.objects.create(user=user, **validated_data)
+        offer = Offer.objects.create(**validated_data)
         for detail_data in details_data:
             OfferDetail.objects.create(offer=offer, **detail_data)
         return offer
