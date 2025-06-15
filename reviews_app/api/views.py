@@ -36,23 +36,26 @@ class ReviewCreateView(CreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        user = self.request.user
+    def post(self, request, *args, **kwargs):
+        user = request.user
 
-        # Only 'customer' users can create reviews
+        # Only customers can review
         if user.user_type != 'customer':
             raise PermissionDenied("Only users with the type 'customer' can create reviews.")
 
-        business_user = self.request.data.get("business_user")
+        business_user = request.data.get("business_user")
         if not business_user:
             raise ValidationError({"business_user": "This field is required."})
 
-        # Prevent duplicate reviews from the same reviewer to the same business user
+        # Check for duplicate
         if Review.objects.filter(reviewer=user, business_user_id=business_user).exists():
             raise ValidationError({"error": "You have already submitted a review for this business user."})
 
-        # Save the review with the authenticated user as the reviewer
+        # Serialize with validated reviewer
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         serializer.save(reviewer=user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class ReviewUpdateView(UpdateAPIView):

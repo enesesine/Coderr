@@ -3,7 +3,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     RetrieveAPIView
 )
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
@@ -14,8 +14,8 @@ from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSeri
 
 # Custom pagination class
 class OfferPagination(PageNumberPagination):
-    page_size = 1
-    page_size_query_param = 'page_size'
+    page_size = 1  # Default page size
+    page_size_query_param = 'page_size'  # Allow override via ?page_size=
 
 
 # Custom filter to support filtering by min_price and max_delivery_time on related OfferDetail
@@ -26,6 +26,18 @@ class OfferFilter(FilterSet):
     class Meta:
         model = Offer
         fields = ['user', 'min_price', 'max_delivery_time']
+
+
+# Custom permission: everyone can read, only creator can modify
+class IsOfferOwnerOrReadOnly(BasePermission):
+    """
+    Custom permission to allow read-only access to all users,
+    but restrict write access (PATCH, DELETE) to the offer's creator.
+    """
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True  # Allow GET, HEAD, OPTIONS
+        return obj.user == request.user  # Allow write only for the creator
 
 
 # View for listing or creating offers
@@ -50,15 +62,9 @@ class OfferListCreateView(ListCreateAPIView):
 # View for retrieving, updating or deleting a specific offer
 class OfferDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOfferOwnerOrReadOnly]  # NEW: allows read for all, write only for creator
     lookup_field = 'id'
     lookup_url_kwarg = 'id'
-
-    def get_object(self):
-        offer = super().get_object()
-        if offer.user != self.request.user:
-            raise PermissionDenied("You are not the creator of this offer.")
-        return offer
 
     def get_serializer_class(self):
         if self.request.method == 'PATCH':

@@ -82,7 +82,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'auth_app.CustomUser'
 
-# ✅ DRF Configuration – Token Auth only
+#  DRF Configuration – Token Auth only
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',  # <-- This is the important one
