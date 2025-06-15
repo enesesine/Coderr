@@ -50,7 +50,7 @@ class OfferListCreateView(ListCreateAPIView):
 # View for retrieving, updating or deleting a specific offer
 class OfferDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = 'id'
     lookup_url_kwarg = 'id'
 
