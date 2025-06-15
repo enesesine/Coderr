@@ -7,8 +7,8 @@ from rest_framework import status
 from orders_app.models import Order
 from offers_app.models import OfferDetail
 from .serializers import OrderSerializer
-from orders_app import models
 from django.contrib.auth import get_user_model
+from django.db.models import Q  # <- WICHTIG: Das löst deinen Q-Fehler
 
 User = get_user_model()
 
@@ -26,7 +26,7 @@ class OrderListCreateView(ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         return Order.objects.filter(
-            models.Q(customer_user=user) | models.Q(business_user=user)
+            Q(customer_user=user) | Q(business_user=user)  # <- Fix hier
         )
 
     def create(self, request, *args, **kwargs):

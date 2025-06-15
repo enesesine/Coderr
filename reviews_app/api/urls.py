@@ -1,14 +1,17 @@
 from django.urls import path
-from .views import ReviewListView, ReviewUpdateView, ReviewDeleteView
+from .views import ReviewListView, ReviewCreateView, ReviewUpdateView, ReviewDeleteView
 
-# URL configuration for the review-related endpoints
 urlpatterns = [
-    # GET: List all reviews / POST: Create a new review
-    path('reviews/', ReviewListView.as_view(), name='review-list-create'),
+    # GET: List reviews, optionally filtered
+    # POST: Create a new review (only for customers)
+    path('reviews/', ReviewListView.as_view(), name='review-list'),
 
-    # PATCH: Update a specific review (only the reviewer can do this)
+    # POST: Create a review
+    path('reviews/create/', ReviewCreateView.as_view(), name='review-create'),
+
+    # PATCH: Update a review by ID
     path('reviews/<int:id>/', ReviewUpdateView.as_view(), name='review-update'),
 
-    # DELETE: Remove a specific review (only the reviewer can do this)
+    # DELETE: Delete a review by ID
     path('reviews/<int:id>/delete/', ReviewDeleteView.as_view(), name='review-delete'),
 ]
