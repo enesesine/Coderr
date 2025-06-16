@@ -57,7 +57,7 @@ class OfferListCreateView(ListCreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.type != "business":
+        if user.user_type != "business":  
             raise PermissionDenied("Only users with type 'business' can create offers.")
         serializer.save(user=user)
 
@@ -65,7 +65,7 @@ class OfferListCreateView(ListCreateAPIView):
 # View for retrieving, updating or deleting a specific offer
 class OfferDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
-    permission_classes = [IsOfferOwnerOrReadOnly]  # NEW: allows read for all, write only for creator
+    permission_classes = [IsOfferOwnerOrReadOnly]
     lookup_field = 'id'
     lookup_url_kwarg = 'id'
 
