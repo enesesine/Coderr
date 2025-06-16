@@ -37,6 +37,11 @@ class OfferDetailSerializer(serializers.ModelSerializer):
             'id'
         ]
 
+        def validate_offer_type(self, value):
+            if value not in ("basic", "standard", "premium"):
+                raise serializers.ValidationError("offer_type must be basic / standard / premium")
+            return value
+
 
 class OfferSerializer(serializers.ModelSerializer):
     """

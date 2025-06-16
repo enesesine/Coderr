@@ -137,3 +137,20 @@ class OrdersForBusinessView(ListAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(business_user=self.request.user)
+
+
+
+class OrderCountView(APIView):
+    """
+    Returns the count of orders in progress for a specific business user.    
+   """
+    permission_classes = []          
+
+    def get(self, request, business_user_id):
+        try:
+            user = User.objects.get(pk=business_user_id, type="business")
+        except User.DoesNotExist:
+            raise NotFound("Business user not found.")
+
+        cnt = Order.objects.filter(business_user=user, status="in_progress").count()
+        return Response({"order_count": cnt}, status=200)

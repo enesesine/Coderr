@@ -11,10 +11,7 @@ from .serializers import ReviewSerializer
 
 
 class ReviewListCreateView(ListCreateAPIView):
-    """
-    GET  /api/reviews/      → Liste aller Reviews (filter- & sortierbar)
-    POST /api/reviews/      → Neues Review anlegen (nur Customer-User)
-    """
+
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
@@ -22,11 +19,11 @@ class ReviewListCreateView(ListCreateAPIView):
     filterset_fields = ["business_user", "reviewer"]
     ordering_fields = ["updated_at", "rating"]
 
-    # einzig benötigte Überschreibung
+  
     def perform_create(self, serializer):
         user = self.request.user
 
-        # Nur Kunden dürfen bewerten
+   
         if user.type != "customer":
             raise PermissionDenied(
                 "Only users with the type 'customer' can create reviews."
@@ -41,7 +38,7 @@ class ReviewListCreateView(ListCreateAPIView):
                 {"detail": "You have already submitted a review for this business user."}
             )
 
-        # Hier wird der reviewer verlässlich gesetzt
+        
         serializer.save(reviewer=user)
 
 

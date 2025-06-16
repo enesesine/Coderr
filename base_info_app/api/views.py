@@ -28,8 +28,11 @@ class BaseInfoView(APIView):
         review_count = Review.objects.count()
 
         # Calculate average rating, default to 0 if none exist
-        average_rating = Review.objects.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+        average_rating = Review.objects.aggregate(avg=Avg("rating"))["avg"] or 0
         average_rating = round(average_rating, 1)
+
+
+        
 
         # Count business user profiles
         business_profile_count = CustomUser.objects.filter(type='business').count()
