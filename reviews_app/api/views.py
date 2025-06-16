@@ -40,7 +40,7 @@ class ReviewCreateView(CreateAPIView):
         user = request.user
 
         # Only customers can review
-        if user.user_type != 'customer':
+        if user.type != 'customer':
             raise PermissionDenied("Only users with the type 'customer' can create reviews.")
 
         business_user = request.data.get("business_user")

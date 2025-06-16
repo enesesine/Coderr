@@ -4,9 +4,9 @@ from .models import CustomUser
 
 # Extend the default Django UserAdmin to include custom fields
 class CustomUserAdmin(UserAdmin):
-    # Add 'user_type' to the admin form display (in the fieldsets)
+    # Add custom fields (including 'type') to the admin form display
     fieldsets = UserAdmin.fieldsets + (
-        (None, {'fields': ('user_type',)}),
+        (None, {'fields': ('type', 'file', 'location', 'tel', 'description', 'working_hours', 'uploaded_at')}),
     )
 
 # Register the CustomUser model with the custom admin class

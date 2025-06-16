@@ -32,7 +32,8 @@ class BaseInfoView(APIView):
         average_rating = round(average_rating, 1)
 
         # Count business user profiles
-        business_profile_count = CustomUser.objects.filter(user_type='business').count()
+        business_profile_count = CustomUser.objects.filter(type='business').count()
+
 
         # Total number of offers
         offer_count = Offer.objects.count()

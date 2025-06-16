@@ -14,7 +14,7 @@ class CustomUser(AbstractUser):
     ]
 
     # Defines the role of the user (customer or business)
-    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+    type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
 
     # Optional: File path or image URL associated with the user's profile
     file = models.CharField(max_length=255, blank=True, default="")

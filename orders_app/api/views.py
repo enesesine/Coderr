@@ -33,7 +33,7 @@ class OrderListCreateView(ListCreateAPIView):
         user = request.user
 
 
-        if user.user_type != "customer":  
+        if user.type != "customer":  
             raise PermissionDenied("Only users of type 'customer' are allowed to create orders.")
 
         offer_detail_id = request.data.get("offer_detail_id")
