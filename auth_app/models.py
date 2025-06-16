@@ -13,8 +13,8 @@ class CustomUser(AbstractUser):
         ('business', 'Business'),
     ]
 
-    # Indicates the role of the user (customer or business)
-    type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+    # Defines the role of the user (customer or business)
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
 
     # Optional: File path or image URL associated with the user's profile
     file = models.CharField(max_length=255, blank=True, default="")
@@ -36,9 +36,6 @@ class CustomUser(AbstractUser):
 
     # Timestamp for when a profile-related file was uploaded
     uploaded_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-
-    # Redundant user_type field (likely meant for quick access; same as `type`)
-    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
 
     def __str__(self):
         return self.username

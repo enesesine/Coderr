@@ -8,7 +8,7 @@ from orders_app.models import Order
 from offers_app.models import OfferDetail
 from .serializers import OrderSerializer
 from django.contrib.auth import get_user_model
-from django.db.models import Q  # <- WICHTIG: Das löst deinen Q-Fehler
+from django.db.models import Q  
 
 User = get_user_model()
 
@@ -26,13 +26,14 @@ class OrderListCreateView(ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         return Order.objects.filter(
-            Q(customer_user=user) | Q(business_user=user)  # <- Fix hier
+            Q(customer_user=user) | Q(business_user=user)
         )
 
     def create(self, request, *args, **kwargs):
         user = request.user
 
-        if user.user_type != "customer":
+
+        if user.user_type != "customer":  
             raise PermissionDenied("Only users of type 'customer' are allowed to create orders.")
 
         offer_detail_id = request.data.get("offer_detail_id")
@@ -44,7 +45,7 @@ class OrderListCreateView(ListCreateAPIView):
         except OfferDetail.DoesNotExist:
             raise NotFound("Offer detail not found.")
 
-        # Create order using offer detail info
+      
         order = Order.objects.create(
             customer_user=user,
             business_user=offer_detail.offer.user,
