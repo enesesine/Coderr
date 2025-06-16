@@ -118,10 +118,13 @@ class CompletedOrderCountView(APIView):
         try:
             user = User.objects.get(pk=business_user_id)
         except User.DoesNotExist:
-            raise NotFound("Business user not found.")
+            return Response({"detail": "Business user not found."}, status=404)
 
         count = Order.objects.filter(business_user=user, status='completed').count()
         return Response({"completed_order_count": count}, status=status.HTTP_200_OK)
+    
+
+    
 
 
 class OrdersForBusinessView(ListAPIView):

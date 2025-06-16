@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
+
 class IsOwnerProfile(BasePermission):
     """
     Custom permission to allow access only if the user is modifying their own profile.
