@@ -1,10 +1,11 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-class IsOwnerProfile(BasePermission):
+class IsProfileOwnerOrReadOnly(BasePermission):
     """
-    Read for all auth-Users, write only for owners.
+    • SAFE_METHODS (GET/HEAD/OPTIONS): allow for any authenticated user  
+    • Other methods (PATCH/DELETE): only if the profile belongs to request.user
     """
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
-            return obj.id == request.user.id  
-        return obj.id == request.user.id      
+            return request.user and request.user.is_authenticated
+        return obj.id == request.user.id

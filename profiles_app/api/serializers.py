@@ -1,48 +1,67 @@
+# profiles_app/api/serializers.py
 from rest_framework import serializers
 from auth_app.models import CustomUser
 
+
 class ProfileSerializer(serializers.ModelSerializer):
     """
-    Serializer for the user profile.
-    
-    This serializer exposes selected fields from the CustomUser model,
-    allowing profile data to be read and updated, with some fields set as read-only.
+    Converts CustomUser instances to JSON for profile endpoints.
+
+    API contract:
+    • first_name, last_name, location, tel, description, working_hours
+      → never null – return "" when empty.
+    • created_at must always be present (ISO-format).
     """
 
-    # Expose the user's ID using the alias 'user' (read-only)
-    user = serializers.IntegerField(source='id', read_only=True)
+    # Force CharFields to fallback to "" instead of None
+    first_name = serializers.CharField(allow_blank=True, default="")
+    last_name = serializers.CharField(allow_blank=True, default="")
+    location = serializers.CharField(allow_blank=True, default="")
+    tel = serializers.CharField(allow_blank=True, default="")
+    description = serializers.CharField(allow_blank=True, default="")
+    working_hours = serializers.CharField(allow_blank=True, default="")
 
     class Meta:
         model = CustomUser
+        # Fields required by the two profile endpoints
         fields = [
-            "user",           # alias for 'id'
-            "username",       # read-only: cannot be changed after creation
+            "user",          # PK in related endpoints, kept for compatibility
+            "username",
             "first_name",
             "last_name",
-            "file",           # e.g., profile picture or related upload
-            "location",       # optional location data
-            "tel",            # phone number
-            "description",    # profile bio/description
-            "working_hours",  # availability or business hours
-            "type",           # user type: customer or business (read-only)
-            "email",          # email address (read-only)
-            "created_at",     # registration date (read-only)
-            "uploaded_at"     # file upload date
+            "file",
+            "location",
+            "tel",
+            "description",
+            "working_hours",
+            "type",
+            "email",
+            "created_at",
         ]
-        read_only_fields = ["username", "created_at"]
+        read_only_fields = ["user", "username", "type", "email", "created_at"]
 
     def to_representation(self, instance):
         """
-        Convert null values for specific fields to empty strings in the serialized output.
+        Post-process default DRF representation so that *no* field is null.
 
-        This helps maintain frontend consistency and avoids 'null' values
-        where empty strings are expected.
+        Any None -> "" (only for the string fields we expose).
         """
-        data = super().to_representation(instance)
-        for field in [
-            "first_name", "last_name", "file", "location", 
-            "tel", "description", "working_hours"
-        ]:
-            if data[field] is None:
-                data[field] = ""
-        return data
+        rep = super().to_representation(instance)
+
+        string_fields = (
+            "first_name",
+            "last_name",
+            "location",
+            "tel",
+            "description",
+            "working_hours",
+        )
+        for f in string_fields:
+            if rep[f] is None:
+                rep[f] = ""
+
+        # created_at could theoretisch None sein, wenn Record manuell angelegt wurde
+        if rep["created_at"] is None:
+            rep["created_at"] = ""
+
+        return rep
