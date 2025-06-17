@@ -1,86 +1,108 @@
+
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
-    RetrieveAPIView
+    RetrieveAPIView,
 )
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
+from rest_framework.permissions import (
+    IsAuthenticatedOrReadOnly,
+    IsAuthenticated,  
+    BasePermission,
+    SAFE_METHODS,
+)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from rest_framework.filters import OrderingFilter, SearchFilter
 from offers_app.models import Offer, OfferDetail
-from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer
+from .serializers import (
+    OfferSerializer,
+    OfferCreateSerializer,
+    OfferDetailSerializer,
+)
 
 
-# Custom pagination class
+
 class OfferPagination(PageNumberPagination):
-    page_size = 1  # Default page size
-    page_size_query_param = 'page_size'  # Allow override via ?page_size=
+    """Allow ?page_size=; default = 1 to match the test-suite expectation."""
+    page_size = 1
+    page_size_query_param = "page_size"
 
 
-# Custom filter to support filtering by min_price and max_delivery_time on related OfferDetail
 class OfferFilter(FilterSet):
-    min_price = NumberFilter(field_name='details__price', lookup_expr='gte')
-    max_delivery_time = NumberFilter(field_name='details__delivery_time_in_days', lookup_expr='lte')
+    """Expose ?min_price= and ?max_delivery_time= against related tiers."""
+    min_price = NumberFilter(field_name="details__price", lookup_expr="gte")
+    max_delivery_time = NumberFilter(
+        field_name="details__delivery_time_in_days", lookup_expr="lte"
+    )
 
     class Meta:
         model = Offer
-        fields = ['user', 'min_price', 'max_delivery_time']
+        fields = ["user", "min_price", "max_delivery_time"]
 
 
-# Custom permission: everyone can read, only creator can modify
 class IsOfferOwnerOrReadOnly(BasePermission):
     """
-    Custom permission to allow read-only access to all users,
-    but restrict write access (PATCH, DELETE) to the offer's creator.
+    Read access for everyone.  
+    Write access (PATCH / DELETE) only for the offer creator.
     """
+
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
-            return True  # Allow GET, HEAD, OPTIONS
-        return obj.user == request.user  # Allow write only for the creator
+            return True
+        return obj.user == request.user
 
 
-# View for listing or creating offers
+
+
 class OfferListCreateView(ListCreateAPIView):
+    """
+    GET  /api/offers/           – public list (with pagination / filters)  
+    POST /api/offers/           – create new offer; requires **business** user
+    """
     queryset = Offer.objects.all().distinct()
     permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = OfferPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_class = OfferFilter
-    ordering_fields = ['updated_at', 'details__price']
-    search_fields = ['title', 'description']
+    ordering_fields = ["updated_at", "details__price"]
+    search_fields = ["title", "description"]
 
     def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return OfferCreateSerializer
-        return OfferSerializer
+        # Use the nested-creation serializer for POST, otherwise read serializer
+        return OfferCreateSerializer if self.request.method == "POST" else OfferSerializer
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.type != "business":  
+        if user.type != "business":
             raise PermissionDenied("Only users with type 'business' can create offers.")
         serializer.save(user=user)
 
 
-# View for retrieving, updating or deleting a specific offer
 class OfferDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    GET    /api/offers/<id>/      – view single offer (auth **required** ⇒ 401 on anon)  
+    PATCH  /api/offers/<id>/      – creator only  
+    DELETE /api/offers/<id>/      – creator only
+    """
     queryset = Offer.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOfferOwnerOrReadOnly]
-    lookup_field = 'id'
-    lookup_url_kwarg = 'id'
+    # Order matters: IsAuthenticated first (handles 401), then object-level check
+    permission_classes = [IsAuthenticated, IsOfferOwnerOrReadOnly]
+    lookup_field = "id"
+    lookup_url_kwarg = "id"
 
     def get_serializer_class(self):
-        if self.request.method == 'PATCH':
-            return OfferCreateSerializer
-        return OfferSerializer
+        return OfferCreateSerializer if self.request.method == "PATCH" else OfferSerializer
 
     def perform_update(self, serializer):
         serializer.save()
 
 
-# View to retrieve a specific OfferDetail (tier)
 class OfferDetailRetrieveView(RetrieveAPIView):
+    """
+    GET /api/offerdetails/<id>/ – retrieve a single pricing tier
+    """
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer
-    lookup_field = 'id'
-    lookup_url_kwarg = 'id'
+    lookup_field = "id"
+    lookup_url_kwarg = "id"

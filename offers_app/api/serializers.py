@@ -1,52 +1,47 @@
 from rest_framework import serializers
+from django.db import models
+
 from offers_app.models import Offer, OfferDetail
 from auth_app.models import CustomUser
-from django.db import models
 
 
 class OfferDetailLinkSerializer(serializers.ModelSerializer):
     """
-    Lightweight serializer for linking an OfferDetail.
-    Used when listing Offer objects with references to their pricing tiers.
+    Lightweight representation – only ID plus a frontend-friendly URL.
+    Shown when listing offers so the client can fetch each tier individually.
     """
     url = serializers.SerializerMethodField()
 
     class Meta:
         model = OfferDetail
-        fields = ['id', 'url']
+        fields = ["id", "url"]
 
     def get_url(self, obj):
-        # Returns a frontend-compatible URL for a specific offer detail
         return f"/offerdetails/{obj.id}/"
 
 
 class OfferDetailSerializer(serializers.ModelSerializer):
     """
-    Full serializer for OfferDetail.
-    Used when creating or updating offer tiers like 'basic', 'standard', or 'premium'.
+    Full serializer for a single pricing tier (basic / standard / premium …).
+    Used inside Offer POST/PATCH bodies and when returning an OfferDetail directly.
     """
     class Meta:
         model = OfferDetail
         fields = [
-            'title',
-            'revisions',
-            'delivery_time_in_days',
-            'price',
-            'features',
-            'offer_type',
-            'id'
+            "id",
+            "title",
+            "revisions",
+            "delivery_time_in_days",
+            "price",
+            "features",
+            "offer_type",
         ]
-
-        def validate_offer_type(self, value):
-            if value not in ("basic", "standard", "premium"):
-                raise serializers.ValidationError("offer_type must be basic / standard / premium")
-            return value
 
 
 class OfferSerializer(serializers.ModelSerializer):
     """
-    Read-only serializer for displaying Offers.
-    Includes linked details, minimum price and time, and user profile summary.
+    Read-only serializer for listing / retrieving Offer objects.
+    Adds aggregates (min price / delivery time) and basic creator info.
     """
     details = OfferDetailLinkSerializer(many=True, read_only=True)
     min_price = serializers.SerializerMethodField()
@@ -55,85 +50,119 @@ class OfferSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Offer
+        read_only_fields = ["id", "created_at", "updated_at", "user"]
         fields = [
-            'id',
-            'user',
-            'title',
-            'image',
-            'description',
-            'created_at',
-            'updated_at',
-            'details',
-            'min_price',
-            'min_delivery_time',
-            'user_details'
+            "id",
+            "user",
+            "title",
+            "image",
+            "description",
+            "created_at",
+            "updated_at",
+            "details",
+            "min_price",
+            "min_delivery_time",
+            "user_details",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'user']
 
     def get_min_price(self, obj):
-        # Calculates the lowest price from all related offer tiers
-        return obj.details.aggregate(models.Min("price"))['price__min'] or 0
+        return obj.details.aggregate(models.Min("price"))["price__min"] or 0
 
     def get_min_delivery_time(self, obj):
-        # Calculates the fastest delivery time from all related offer tiers
-        return obj.details.aggregate(models.Min("delivery_time_in_days"))['delivery_time_in_days__min'] or 0
+        return obj.details.aggregate(models.Min("delivery_time_in_days"))[
+            "delivery_time_in_days__min"
+        ] or 0
 
     def get_user_details(self, obj):
-        # Returns basic public profile info of the offer creator
         return {
             "first_name": obj.user.first_name,
             "last_name": obj.user.last_name,
-            "username": obj.user.username
+            "username": obj.user.username,
         }
 
 
 class OfferCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer for creating or updating an Offer including its nested OfferDetails.
-    Validates minimum number of detail packages and supports nested creation/update logic.
+    Serializer used for POST (create) and PATCH (partial update) of an Offer
+    together with its nested OfferDetails.
     """
     details = OfferDetailSerializer(many=True)
 
     class Meta:
         model = Offer
-        fields = ['id', 'title', 'image', 'description', 'details']
+        fields = ["id", "title", "image", "description", "details"]
+
+    # ---------- validation helpers ----------
+
+    def _validate_unique_offer_types(self, details):
+        """Prevent duplicate basic/standard/premium blocks."""
+        seen = set()
+        for d in details:
+            t = d.get("offer_type")
+            if t in seen:
+                raise serializers.ValidationError(
+                    f"Duplicate offer_type '{t}' detected. Each tier must be unique."
+                )
+            seen.add(t)
+
+    def _validate_required_fields(self, details):
+        """Ensure each tier contains all mandatory keys."""
+        required = {
+            "title",
+            "revisions",
+            "delivery_time_in_days",
+            "price",
+            "features",
+            "offer_type",
+        }
+        for d in details:
+            missing = required - d.keys()
+            if missing:
+                raise serializers.ValidationError(
+                    f"Missing field(s) {', '.join(missing)} in detail block."
+                )
+
+    # ---------- field-level validation ----------
 
     def validate_details(self, value):
-        # Enforces that a new offer must have at least 3 pricing tiers (basic, standard, premium)
         request = self.context.get("request")
         if request and request.method == "POST" and len(value) < 3:
-            raise serializers.ValidationError("An offer must include at least 3 detail packages.")
+            raise serializers.ValidationError(
+                "An offer must include at least 3 detail packages."
+            )
+
+        self._validate_unique_offer_types(value)
+        self._validate_required_fields(value)
         return value
 
+    # ---------- create / update ----------
+
     def create(self, validated_data):
-        # Creates an Offer instance along with all its nested OfferDetail entries
-        details_data = validated_data.pop('details')
-        offer = Offer.objects.create(**validated_data)
-        for detail_data in details_data:
-            OfferDetail.objects.create(offer=offer, **detail_data)
+        details_data = validated_data.pop("details")
+        user = self.context["request"].user
+        offer = Offer.objects.create(user=user, **validated_data)
+        for detail in details_data:
+            OfferDetail.objects.create(offer=offer, **detail)
         return offer
 
     def update(self, instance, validated_data):
-        # Updates Offer and its nested OfferDetails based on offer_type matching
-        details_data = validated_data.pop('details', None)
+        details_data = validated_data.pop("details", None)
 
-        # Update fields on the offer itself
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        # update core offer fields
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
         instance.save()
 
-        # Handle nested detail updates
+        # update or create nested tiers
         if details_data:
-            for detail_data in details_data:
-                offer_type = detail_data.get("offer_type")
-                detail_obj = instance.details.filter(offer_type=offer_type).first()
-                if detail_obj:
-                    # Update existing detail with same type
-                    for key, value in detail_data.items():
-                        setattr(detail_obj, key, value)
-                    detail_obj.save()
+            for detail in details_data:
+                tier_type = detail.get("offer_type")
+                tier_obj = instance.details.filter(offer_type=tier_type).first()
+                if tier_obj:
+                    for k, v in detail.items():
+                        setattr(tier_obj, k, v)
+                    tier_obj.save()
                 else:
-                    # Create new detail if not found
-                    OfferDetail.objects.create(offer=instance, **detail_data)
+                    OfferDetail.objects.create(offer=instance, **detail)
 
         return instance
