@@ -23,61 +23,67 @@ from .serializers import OrderSerializer
 
 User = get_user_model()
 
- 
+
 class OrderListCreateView(ListCreateAPIView):
     """
     GET  /api/orders/
-        – Return every order where the current user is *either* customer_user
-          *or* business_user (auth required).
+        Return every order where the requester is customer_user OR business_user.
 
     POST /api/orders/
-        – A *customer* creates an order from an OfferDetail snapshot.
-          ◦ Content-Type must be `application/json`.
-          ◦ Body must contain valid JSON with field  `offer_detail_id`.
+        Customer creates an order from an OfferDetail snapshot.
 
-    Expected error codes:
-        400  invalid JSON / missing fields
-        401  unauthenticated
-        403  non-customer tries to create
-        404  offer detail not found
+    Expected errors
+        400 invalid JSON / missing or non-integer offer_detail_id
+        401 unauthenticated
+        403 requester is not a customer profile
+        404 offer detail not found
     """
 
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
-
+    # ------- LIST ----------------------------------------------------------
     def get_queryset(self):
         user = self.request.user
         return Order.objects.filter(Q(customer_user=user) | Q(business_user=user))
 
-   
+    # ------- CREATE --------------------------------------------------------
     def create(self, request, *args, **kwargs):
-        
+        # Content-Type must be application/json
         if request.content_type != "application/json":
             return Response(
                 {"detail": "Content-Type must be application/json"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Ensure body is valid JSON
         try:
-            data = request.data  
+            data = request.data
         except ParseError:
             return Response(
                 {"detail": "Request body is not valid JSON"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-       
         user = request.user
         if user.type != "customer":
             raise PermissionDenied(
                 "Only users of type 'customer' are allowed to create orders."
             )
 
-        
-        offer_detail_id = data.get("offer_detail_id")
-        if not offer_detail_id:
+        raw_id = data.get("offer_detail_id")
+        if raw_id is None:
             raise ValidationError({"offer_detail_id": "This field is required."})
 
+        # Coerce to integer – raise 400 if not possible
+        try:
+            offer_detail_id = int(raw_id)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                {"offer_detail_id": "Must be a valid integer ID."}
+            )
+
+        # Fetch the referenced OfferDetail
         try:
             offer_detail = OfferDetail.objects.select_related("offer__user").get(
                 pk=offer_detail_id
@@ -85,7 +91,6 @@ class OrderListCreateView(ListCreateAPIView):
         except OfferDetail.DoesNotExist:
             raise NotFound("Offer detail not found.")
 
-       
         order = Order.objects.create(
             customer_user=user,
             business_user=offer_detail.offer.user,
@@ -98,22 +103,12 @@ class OrderListCreateView(ListCreateAPIView):
             status="in_progress",
         )
 
-        return Response(
-            OrderSerializer(order).data, status=status.HTTP_201_CREATED
-        )
-
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
 class OrderStatusUpdateView(RetrieveUpdateAPIView):
     """
-    PATCH /api/orders/<id>/
-        – Only the `business_user` of that order may patch **status**.
-
-    Error codes:
-        400  if 'status' missing
-        401  unauthenticated
-        403  user is not business partner
-        404  order not found
+    PATCH /api/orders/<id>/ – business partner updates only 'status'
     """
 
     queryset = Order.objects.all()
@@ -128,27 +123,17 @@ class OrderStatusUpdateView(RetrieveUpdateAPIView):
         return order
 
     def patch(self, request, *args, **kwargs):
-        instance = self.get_object()
         if "status" not in request.data:
             return Response(
                 {"detail": "Only the 'status' field can be updated."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        serializer = self.get_serializer(
-            instance, data={"status": request.data["status"]}, partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
+        return super().partial_update(request, *args, **kwargs)
 
 
 class OrderDeleteView(DestroyAPIView):
-    """
-    DELETE /api/orders/<id>/delete/
-        – Hard delete (staff / admin only).
-    """
+    """DELETE /api/orders/<id>/delete/ – admin only"""
+
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAdminUser]
@@ -162,10 +147,8 @@ class OrderDeleteView(DestroyAPIView):
 
 
 class OrdersForBusinessView(ListAPIView):
-    """
-    GET /api/orders/business/
-        – Auth’d business user sees every order where he/she is `business_user`.
-    """
+    """GET /api/orders/business/ – orders where requester is business_user"""
+
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
@@ -175,8 +158,10 @@ class OrdersForBusinessView(ListAPIView):
 
 class OrderCountView(APIView):
     """
-    GET – Number of *in_progress* orders for the given business profile.
+    GET /api/order-count/<business_user_id>/  
+    Authenticated users see number of in_progress orders for that business user.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
@@ -184,8 +169,7 @@ class OrderCountView(APIView):
             biz = User.objects.get(pk=business_user_id, type="business")
         except User.DoesNotExist:
             return Response(
-                {"detail": "Business user not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "Business user not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
         cnt = Order.objects.filter(business_user=biz, status="in_progress").count()
@@ -194,8 +178,10 @@ class OrderCountView(APIView):
 
 class CompletedOrderCountView(APIView):
     """
-    GET – Completed order count for a business profile (public).
+    GET /api/completed-order-count/<business_user_id>/  
+    Public endpoint – number of completed orders for a business profile.
     """
+
     permission_classes = []
 
     def get(self, request, business_user_id):
@@ -203,8 +189,7 @@ class CompletedOrderCountView(APIView):
             biz = User.objects.get(pk=business_user_id, type="business")
         except User.DoesNotExist:
             return Response(
-                {"detail": "Business user not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "Business user not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
         cnt = Order.objects.filter(business_user=biz, status="completed").count()
