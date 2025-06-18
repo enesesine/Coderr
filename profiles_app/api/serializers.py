@@ -14,6 +14,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     """
 
     # Force CharFields to fallback to "" instead of None
+    user = serializers.IntegerField(source="id", read_only=True)
     first_name = serializers.CharField(allow_blank=True, default="")
     last_name = serializers.CharField(allow_blank=True, default="")
     location = serializers.CharField(allow_blank=True, default="")
@@ -25,7 +26,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         # Fields required by the two profile endpoints
         fields = [
-            "user",          # PK in related endpoints, kept for compatibility
+            "user",          
             "username",
             "first_name",
             "last_name",
