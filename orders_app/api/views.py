@@ -182,7 +182,7 @@ class CompletedOrderCountView(APIView):
     Public endpoint – number of completed orders for a business profile.
     """
 
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
         try:
